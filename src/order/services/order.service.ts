@@ -1,39 +1,25 @@
-import { Injectable } from '@nestjs/common';
-import { v4 } from 'uuid';
+import { Injectable } from "@nestjs/common";
+import { IOrderRepository } from "../repositories";
+import { OrderDto } from "../models";
 
-import { Order } from '../models';
 
 @Injectable()
 export class OrderService {
-  private orders: Record<string, Order> = {}
+  constructor(private readonly orderRepository: IOrderRepository) {}
 
-  findById(orderId: string): Order {
-    return this.orders[ orderId ];
+  async findById(orderId: string): Promise<OrderDto | null> {
+    return this.orderRepository.findById(orderId);
   }
 
-  create(data: any) {
-    const id = v4()
-    const order = {
-      ...data,
-      id,
-      status: 'inProgress',
-    };
-
-    this.orders[ id ] = order;
-
-    return order;
+  async create(data: OrderDto): Promise<OrderDto> {
+    return this.orderRepository.create(data);
   }
 
-  update(orderId, data) {
-    const order = this.findById(orderId);
+  async update(orderId: string, data: OrderDto): Promise<OrderDto> {
+    return this.orderRepository.update(orderId, data);
+  }
 
-    if (!order) {
-      throw new Error('Order does not exist.');
-    }
-
-    this.orders[ orderId ] = {
-      ...data,
-      id: orderId,
-    }
+  async remove(orderId: string): Promise<void> {
+    return this.orderRepository.remove(orderId);
   }
 }
