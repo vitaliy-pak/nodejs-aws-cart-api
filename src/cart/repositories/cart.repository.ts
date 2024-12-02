@@ -1,90 +1,78 @@
-import { Injectable } from "@nestjs/common";
-import { PrismaService } from "../../prisma";
-import { plainToInstance } from "class-transformer";
-import { Cart as PrismaCart, CartItem as PrismaCartItem } from "@prisma/client";
-import { ICartRepository } from "./cart.repository.interface";
-import { CartDto, CartItemDto } from "../models";
+import { Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { CartDto, CartItemDto } from '../dto';
+import { Cart, CartItem } from "../entities";
 
 @Injectable()
-export class CartRepository implements ICartRepository {
-    constructor(private readonly prisma: PrismaService) {
+export class CartRepository {
+    constructor(
+        @InjectRepository(Cart)
+        private cartRepository: Repository<Cart>,
+        @InjectRepository(CartItem)
+        private cartItemRepository: Repository<CartItem>,
+    ) {
+        console.log("cartRepository", cartRepository);
+        console.log("cartItemRepository", cartItemRepository);
     }
 
     async findByUserId(userId: string): Promise<CartDto | null> {
-        const prismaCart = await this.prisma.cart.findUnique({
-            where: {userId: userId},
-            include: {items: true},
-        });
-        return prismaCart ? this.toDto(prismaCart) : null;
+        const cart = await this.cartRepository.findOne({where: {userId}, relations: ['items']});
+        return cart ? this.toDto(cart) : null;
     }
 
     async createByUserId(userId: string): Promise<CartDto> {
-        const prismaCart = await this.prisma.cart.create({
-            data: {
-                userId,
-                items: {
-                    create: [],
-                },
-            },
-            include: {items: true},
-        });
-        return this.toDto(prismaCart);
+        const cart = this.cartRepository.create({userId});
+        return this.toDto(await this.cartRepository.save(cart));
     }
 
     async findOrCreateByUserId(userId: string): Promise<CartDto> {
-        const userCart = await this.findByUserId(userId);
-        if (userCart) {
-            return userCart;
+        const cart = await this.findByUserId(userId);
+        if (cart) {
+            return cart;
         }
         return this.createByUserId(userId);
     }
 
     async updateByUserId(userId: string, items: CartItemDto[]): Promise<CartDto> {
-        const userCart = await this.findOrCreateByUserId(userId);
-        const prismaCart = await this.prisma.cart.update({
-            where: {id: userCart.id},
-            data: {
-                items: {
-                    deleteMany: {},
-                    create: items.map(item => this.toPrismaCartItem(item, userCart.id)),
-                },
-                updatedAt: new Date(),
-            },
-            include: {items: true},
-        });
-        return this.toDto(prismaCart);
+        const cart = await this.findOrCreateByUserId(userId);
+
+        const updatedItems = items.map(item => ({
+            productId: item.productId,
+            count: item.count,
+            cartId: cart.id,
+        }));
+
+        await this.cartItemRepository.delete({cartId: cart.id});
+        await this.cartItemRepository.save(updatedItems);
+
+        return cart;
     }
 
     async removeByUserId(userId: string): Promise<void> {
-        await this.prisma.cart.deleteMany({
-            where: {userId},
-        });
+        const cart = await this.cartRepository.findOne({where: {userId}});
+        if (cart) {
+            await this.cartRepository.remove(cart);
+        } else {
+            throw new Error('Cart not found');
+        }
     }
 
-    private toDto(prismaCart: PrismaCart): CartDto {
-        return plainToInstance(CartDto, {
-            id: prismaCart.id,
-            user_id: prismaCart.userId,
-            created_at: prismaCart.createdAt.toISOString(),
-            updated_at: prismaCart.updatedAt.toISOString(),
-            status: prismaCart.status,
-            // items: prismaCart.items.map(this.toDtoCartItem),
-        });
-    }
-
-    private toDtoCartItem(prismaItem: PrismaCartItem): CartItemDto {
-        return plainToInstance(CartItemDto, {
-            productId: prismaItem.productId,
-            count: prismaItem.count,
-        });
-    }
-
-    private toPrismaCartItem(cartItem: CartItemDto, cartId: string): Omit<PrismaCartItem, 'id'> {
+    private toDto(cart: Cart): CartDto {
         return {
-            cartId,
+            id: cart.id,
+            user_id: cart.userId,
+            created_at: cart.createdAt.toISOString(),
+            updated_at: cart.updatedAt.toISOString(),
+            status: cart.status,
+            items: cart.items.map(this.toDtoCartItem),
+        };
+    }
+
+    private toDtoCartItem(cartItem: CartItem): CartItemDto {
+        return {
             productId: cartItem.productId,
             count: cartItem.count,
-            orderId: null,
         };
     }
 }
