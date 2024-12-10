@@ -1,55 +1,27 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from "@nestjs/common";
+import { CartRepository } from "../repositories/cart.repository";
+import { CartDto } from "../dto/cart.dto";
+import { CartItemDto } from "../dto/cart-item.dto";
 
-import { v4 } from 'uuid';
-
-import { Cart } from '../models';
 
 @Injectable()
 export class CartService {
-  private userCarts: Record<string, Cart> = {};
-
-  findByUserId(userId: string): Cart {
-    return this.userCarts[ userId ];
-  }
-
-  createByUserId(userId: string) {
-    const id = v4();
-    const userCart = {
-      id,
-      items: [],
-    };
-
-    this.userCarts[ userId ] = userCart;
-
-    return userCart;
-  }
-
-  findOrCreateByUserId(userId: string): Cart {
-    const userCart = this.findByUserId(userId);
-
-    if (userCart) {
-      return userCart;
+    constructor(@Inject(CartRepository) private readonly cartRepository: CartRepository) {
     }
 
-    return this.createByUserId(userId);
-  }
-
-  updateByUserId(userId: string, { items }: Cart): Cart {
-    const { id, ...rest } = this.findOrCreateByUserId(userId);
-
-    const updatedCart = {
-      id,
-      ...rest,
-      items: [ ...items ],
+    async findByUserId(userId: string): Promise<CartDto | null> {
+        return this.cartRepository.findByUserId(userId);
     }
 
-    this.userCarts[ userId ] = { ...updatedCart };
+    async findOrCreateByUserId(userId: string): Promise<CartDto> {
+        return this.cartRepository.findOrCreateByUserId(userId);
+    }
 
-    return { ...updatedCart };
-  }
+    async updateByUserId(userId: string, items: CartItemDto[]): Promise<CartDto> {
+        return this.cartRepository.updateByUserId(userId, items);
+    }
 
-  removeByUserId(userId): void {
-    this.userCarts[ userId ] = null;
-  }
-
+    async removeByUserId(userId: string): Promise<CartDto> {
+        return this.cartRepository.removeByUserId(userId);
+    }
 }

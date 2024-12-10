@@ -1,10 +1,14 @@
 import { Controller, Get, Request, Post, UseGuards, HttpStatus } from '@nestjs/common';
-import { LocalAuthGuard, AuthService, JwtAuthGuard, BasicAuthGuard } from './auth';
+import { AuthService } from "./auth/auth.service";
+import { BasicAuthGuard } from "./auth/guards/bacis-auth.guard";
+
 
 @Controller()
 export class AppController {
 
-  constructor(private authService: AuthService) {}
+  constructor(private authService: AuthService) {
+    console.log('AppController authService:', authService);
+  }
 
   @Get([ '', 'ping' ])
   healthCheck(): any {
@@ -14,7 +18,7 @@ export class AppController {
     };
   }
 
-  @UseGuards(LocalAuthGuard)
+  @UseGuards(BasicAuthGuard)
   @Post('api/auth/login')
   async login(@Request() req) {
     const token = this.authService.login(req.user, 'basic');
