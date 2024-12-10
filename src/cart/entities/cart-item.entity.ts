@@ -17,7 +17,4 @@ export class CartItem {
 
     @ManyToOne(() => Cart, (cart) => cart.items)
     cart: Cart;
-
-    // @ManyToOne(() => Order, (order) => order.items)
-    // order: Order;
 }

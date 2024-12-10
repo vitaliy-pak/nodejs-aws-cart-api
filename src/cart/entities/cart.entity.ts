@@ -1,8 +1,7 @@
-import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from "typeorm";
-import { CartItem } from "./index";
-import { CartStatus } from "../dto";
-
-
+import { Column, DeleteDateColumn, Entity, OneToMany, OneToOne, PrimaryGeneratedColumn } from "typeorm";
+import { CartItem } from "./cart-item.entity";
+import { CartStatus } from "../dto/cart.dto";
+import { Order } from "../../order/entities/order.entity";
 
 @Entity()
 export class Cart {
@@ -21,6 +20,12 @@ export class Cart {
     @Column({type: 'timestamp', default: () => 'CURRENT_TIMESTAMP', onUpdate: 'CURRENT_TIMESTAMP'})
     updatedAt: Date;
 
-    @OneToMany(() => CartItem, (cartItem) => cartItem.cart)
+    @DeleteDateColumn()
+    deletedAt?: Date;
+
+    @OneToOne(() => Order, order => order.cart)
+    order?: Order;
+
+    @OneToMany(() => CartItem, (cartItem) => cartItem.cart, {onDelete: 'CASCADE'})
     items: CartItem[];
 }

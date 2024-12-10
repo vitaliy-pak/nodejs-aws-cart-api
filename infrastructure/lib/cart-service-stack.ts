@@ -15,6 +15,9 @@ import {
     Vpc
 } from "aws-cdk-lib/aws-ec2";
 import { Credentials, DatabaseInstance, DatabaseInstanceEngine, StorageType } from "aws-cdk-lib/aws-rds";
+import * as dotenv from 'dotenv';
+
+dotenv.config();
 
 export class CartServiceStack extends cdk.Stack {
     constructor(scope: Construct, id: string, props?: cdk.StackProps) {

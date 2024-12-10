@@ -1,26 +1,41 @@
-import { IsArray, IsString } from "class-validator";
-import { CartItemDto } from "./index";
+import { IsArray, IsEnum, IsOptional, IsString } from "class-validator";
+import { CartItemDto } from "./cart-item.dto";
+import { Expose, Transform } from "class-transformer";
 export enum CartStatus {
-    OPEN = "OPEN",
-    ORDERED = "ORDERED"
+    OPEN = "open",
+    ORDERED = "ordered"
 }
 
 export class CartDto {
+    @Expose()
     @IsString()
     id: string;
 
+    @Expose()
     @IsString()
-    user_id: string;
+    userId: string;
 
+    @Expose()
+    @Transform(({ value }) => value.toISOString(), { toPlainOnly: true })
     @IsString()
-    created_at: string;
+    createdAt: Date;
 
+    @Expose()
+    @Transform(({ value }) => value.toISOString(), { toPlainOnly: true })
     @IsString()
-    updated_at: string;
+    updatedAt: Date;
 
+    @Expose()
+    @Transform(({ value }) => value?.toISOString(), { toPlainOnly: true })
     @IsString()
-    status: string;
+    @IsOptional()
+    deletedAt?: Date;
 
+    @Expose()
+    @IsEnum(CartStatus)
+    status: CartStatus;
+
+    @Expose()
     @IsArray()
     items: CartItemDto[];
 }

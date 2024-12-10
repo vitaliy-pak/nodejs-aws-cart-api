@@ -1,8 +1,11 @@
 import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { CartDto, CartItemDto } from '../dto';
-import { Cart, CartItem } from "../entities";
+import { InjectEntityManager, InjectRepository } from '@nestjs/typeorm';
+import { EntityManager, EntityNotFoundError, Repository } from 'typeorm';
+import { plainToInstance } from "class-transformer";
+import { Cart } from "../entities/cart.entity";
+import { CartItem } from "../entities/cart-item.entity";
+import { CartDto, CartStatus } from "../dto/cart.dto";
+import { CartItemDto } from "../dto/cart-item.dto";
 
 @Injectable()
 export class CartRepository {
@@ -11,68 +14,68 @@ export class CartRepository {
         private cartRepository: Repository<Cart>,
         @InjectRepository(CartItem)
         private cartItemRepository: Repository<CartItem>,
+        @InjectEntityManager()
+        private entityManager: EntityManager
     ) {
-        console.log("cartRepository", cartRepository);
-        console.log("cartItemRepository", cartItemRepository);
     }
 
     async findByUserId(userId: string): Promise<CartDto | null> {
-        const cart = await this.cartRepository.findOne({where: {userId}, relations: ['items']});
-        return cart ? this.toDto(cart) : null;
+        const cart = await this.findCartByUserId(userId);
+        return cart ? plainToInstance(CartDto, cart): cart;
     }
+
 
     async createByUserId(userId: string): Promise<CartDto> {
         const cart = this.cartRepository.create({userId});
-        return this.toDto(await this.cartRepository.save(cart));
+        return plainToInstance(Cart, await this.cartRepository.save(cart));
     }
 
     async findOrCreateByUserId(userId: string): Promise<CartDto> {
-        const cart = await this.findByUserId(userId);
+        const cart = await this.findCartByUserId(userId);
+
         if (cart) {
             return cart;
         }
+
         return this.createByUserId(userId);
     }
 
     async updateByUserId(userId: string, items: CartItemDto[]): Promise<CartDto> {
-        const cart = await this.findOrCreateByUserId(userId);
+        await this.entityManager.transaction(async transactionalEntityManager => {
+            const cart = await this.findCartByUserId(userId);
 
-        const updatedItems = items.map(item => ({
-            productId: item.productId,
-            count: item.count,
-            cartId: cart.id,
-        }));
+            if (!cart) {
+                throw new EntityNotFoundError(Cart, `Cart for user with ID ${userId} is not found`);
+            }
 
-        await this.cartItemRepository.delete({cartId: cart.id});
-        await this.cartItemRepository.save(updatedItems);
+            await transactionalEntityManager.delete(CartItem, {cartId: cart.id});
 
-        return cart;
+            const updatedItems = items.map(itemDto => plainToInstance(CartItem, {
+                ...itemDto,
+                cartId: cart.id,
+                cart: cart
+            }));
+
+            await transactionalEntityManager.save(updatedItems);
+        });
+
+        return await this.findByUserId(userId);
     }
 
-    async removeByUserId(userId: string): Promise<void> {
-        const cart = await this.cartRepository.findOne({where: {userId}});
-        if (cart) {
-            await this.cartRepository.remove(cart);
-        } else {
-            throw new Error('Cart not found');
+    async removeByUserId(userId: string): Promise<CartDto> {
+        const cart = await this.findCartByUserId(userId);
+
+        if (!cart) {
+            throw new EntityNotFoundError(Cart, `Cart for user with ID ${userId} is not found`);
         }
+
+        await this.cartRepository.update({id: cart.id}, plainToInstance(Cart, {status: CartStatus.ORDERED}));
+        const removedCart = await this.cartRepository.softRemove(cart);
+        return plainToInstance(CartDto, removedCart);
     }
 
-    private toDto(cart: Cart): CartDto {
-        return {
-            id: cart.id,
-            user_id: cart.userId,
-            created_at: cart.createdAt.toISOString(),
-            updated_at: cart.updatedAt.toISOString(),
-            status: cart.status,
-            items: cart.items.map(this.toDtoCartItem),
-        };
-    }
-
-    private toDtoCartItem(cartItem: CartItem): CartItemDto {
-        return {
-            productId: cartItem.productId,
-            count: cartItem.count,
-        };
+    private async findCartByUserId(userId: string): Promise<Cart | null> {
+        const cart = await this.cartRepository.findOne({where: {userId}, relations: ['items']});
+        return cart || null;
     }
 }

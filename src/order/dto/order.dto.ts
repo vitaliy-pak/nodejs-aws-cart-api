@@ -1,4 +1,5 @@
 import { IsArray, IsObject, IsOptional, IsString } from "class-validator";
+import { CartItemDto } from "../../cart/dto/cart-item.dto";
 
 export class Address {
     @IsOptional()
@@ -35,9 +36,8 @@ export class OrderDto {
     @IsString()
     cartId: string;
 
-    //
-    // @IsArray()
-    // items: CartItemDto[];
+    @IsArray()
+    items: CartItemDto[];
 
     @IsObject()
     address: Address;

@@ -9,7 +9,7 @@
     "watch": "tsc -w",
     "test": "jest",
     "cdk": "cdk",
-    "cdk:deploy": "set AWS_PROFILE=vp0555 && set TEST_USERNAME=vitaliy-pak && set TEST_PASSWORD=TEST_PASSWORD && set DB_PASSWORD=cartdbpassword && set DB_USERNAME=cartdbuser && set DB_NAME=cartdb && cdk deploy CartServiceStack --profile=vp0555"
+    "cdk:deploy": "cdk deploy --profile=vp0555"
   },
   "devDependencies": {
     "@types/node": "22.5.4",

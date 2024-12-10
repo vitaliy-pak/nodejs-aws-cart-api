@@ -1,15 +1,19 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { UsersService } from '../users/services/users.service';
-import { User } from '../users/models';
-import { contentSecurityPolicy } from 'helmet';
+import { UsersService } from "../users/services/users.service";
+import { User } from "../users/models/user.model";
 
 @Injectable()
 export class AuthService {
+  @Inject(UsersService)
+  private readonly usersService: UsersService;
+
   constructor(
-    private usersService: UsersService,
-    private jwtService: JwtService
-  ) {}
+    //private usersService: UsersService,
+    private jwtService: JwtService,
+  ) {
+    console.log('AuthService usersService:', this.usersService);
+  }
 
   validateUser(name: string, password: string): any {
     const user = this.usersService.findOne(name);
@@ -57,7 +61,4 @@ export class AuthService {
       access_token: encodeUserToken(user),
     };
   }
-
-
-
 }

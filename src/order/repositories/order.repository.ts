@@ -1,8 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Order } from "../entities";
-import { OrderDto } from "../dto";
+import { plainToInstance } from "class-transformer";
+import { Order, OrderStatus } from "../entities/order.entity";
+import { OrderDto } from "../dto/order.dto";
 
 @Injectable()
 export class OrderRepository {
@@ -10,56 +11,42 @@ export class OrderRepository {
         @InjectRepository(Order)
         private orderRepository: Repository<Order>,
     ) {
-        console.log("orderRepository", orderRepository);
     }
 
     async findAll(): Promise<OrderDto[]> {
-        const orders = await this.orderRepository.find();
-        return orders.map(order => this.toDto(order));
+        const orders = await this.orderRepository.find({relations: ['cart', 'cart.items'], withDeleted: true});
+        return orders.map(order => plainToInstance(OrderDto, order));
     }
 
-    // async findById(orderId: string): Promise<OrderDto | null> {
-    //     const order = await this.orderRepository.findOne({
-    //         where: {id: orderId},
-    //         relations: ['items'],
-    //     });
-    //     return order ? this.toDto(order) : null;
-    // }
-    //
-    // async create(data: OrderDto): Promise<OrderDto> {
-    //     const order = this.orderRepository.create({
-    //         ...data,
-    //         statusHistory: [
-    //             {
-    //                 status: 'OPEN',
-    //                 timestamp: new Date().toISOString(),
-    //                 comment: 'Order has been created',
-    //             },
-    //         ],
-    //     });
-    //     return this.toDto(await this.orderRepository.save(order));
-    // }
-    //
-    // async update(orderId: string, data: OrderDto): Promise<OrderDto> {
-    //     await this.orderRepository.update(orderId, data);
-    //     return this.findById(orderId);
-    // }
-    //
-    // async remove(orderId: string): Promise<void> {
-    //     await this.orderRepository.delete(orderId);
-    // }
+    async findById(orderId: string): Promise<OrderDto | null> {
+        const order = await this.orderRepository.findOne({
+            where: {id: orderId},
+            relations: ['cart', 'cart.items'],
+        });
+        return order ? plainToInstance(OrderDto, order) : null;
+    }
 
-    private toDto(order: Order): OrderDto {
-        return {
-            id: order.id,
-            userId: order.userId,
-            cartId: order.cartId,
-            // items: order.items.map(item => ({
-            //     productId: item.productId,
-            //     count: item.count,
-            // })),
-            address: order.address,
-            statusHistory: order.statusHistory,
-        };
+    async create(data: Partial<OrderDto>): Promise<OrderDto> {
+        const order = this.orderRepository.create(plainToInstance(Order, {
+            ...data,
+            statusHistory: [
+                {
+                    status: OrderStatus.OPEN,
+                    timestamp: new Date().toISOString(),
+                    comment: 'Order has been created',
+                },
+            ],
+        }));
+
+        return plainToInstance(OrderDto, await this.orderRepository.save(order));
+    }
+
+    async update(orderId: string, data: Partial<OrderDto>): Promise<OrderDto> {
+        await this.orderRepository.update(orderId, data);
+        return this.findById(orderId);
+    }
+
+    async remove(orderId: string): Promise<void> {
+        await this.orderRepository.delete(orderId);
     }
 }

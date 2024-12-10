@@ -5,11 +5,15 @@ import { AuthModule } from './auth/auth.module';
 import { OrderModule } from './order/order.module';
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { TypeOrmModule } from "@nestjs/typeorm";
-
+import { CartModule } from "./cart/cart.module";
+import { Cart } from "./cart/entities/cart.entity";
+import { CartItem } from "./cart/entities/cart-item.entity";
+import { Order } from "./order/entities/order.entity";
 
 @Module({
     imports: [
         AuthModule,
+        CartModule,
         OrderModule,
         ConfigModule.forRoot({
             isGlobal: true,
@@ -25,9 +29,9 @@ import { TypeOrmModule } from "@nestjs/typeorm";
                     username: configService.get<string>('DB_USERNAME'),
                     password: configService.get<string>('DB_PASSWORD'),
                     database: configService.get<string>('DB_NAME'),
-                    ssl: { rejectUnauthorized: false },
+                    ssl: {rejectUnauthorized: false},
                     synchronize: true,
-                    autoLoadEntities: true,
+                    entities: [Cart, CartItem, Order],
                     logging: true
                 }
             },

@@ -1,10 +1,12 @@
-import { Body, Controller, Delete, Get, HttpStatus, Post, Put, Req } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpStatus, Post, Put, Req, UseGuards } from '@nestjs/common';
 
 // import { BasicAuthGuard, JwtAuthGuard } from '../auth';
-import { OrderService } from '../order';
-import { AppRequest, getUserIdFromRequest } from '../shared';
 
-import { CartService } from './services';
+
+import { BasicAuthGuard } from "../auth/guards/bacis-auth.guard";
+import { CartService } from "./services/cart.service";
+import { OrderService } from "../order/services/order.service";
+import { AppRequest, getUserIdFromRequest } from "../shared";
 
 @Controller('cart')
 export class CartController {
@@ -12,12 +14,10 @@ export class CartController {
         private cartService: CartService,
         private orderService: OrderService
     ) {
-        console.log('CartController: cartService', cartService);
-        console.log('CartController: orderService', orderService);
     }
 
     // @UseGuards(JwtAuthGuard)
-    // @UseGuards(BasicAuthGuard)
+    @UseGuards(BasicAuthGuard)
     @Get()
     async findUserCart(@Req() req: AppRequest) {
         const cart = await this.cartService.findOrCreateByUserId(getUserIdFromRequest(req));
@@ -30,10 +30,9 @@ export class CartController {
     }
 
     // @UseGuards(JwtAuthGuard)
-    // @UseGuards(BasicAuthGuard)
+    @UseGuards(BasicAuthGuard)
     @Put()
-    async updateUserCart(@Req() req: AppRequest, @Body() body) { // TODO: validate body payload...
-        console.log("body", body);
+    async updateUserCart(@Req() req: AppRequest, @Body() body) {
         const cart = await this.cartService.updateByUserId(getUserIdFromRequest(req), body)
 
         return {
@@ -46,7 +45,7 @@ export class CartController {
     }
 
     // @UseGuards(JwtAuthGuard)
-    // @UseGuards(BasicAuthGuard)
+    @UseGuards(BasicAuthGuard)
     @Delete()
     async clearUserCart(@Req() req: AppRequest) {
         await this.cartService.removeByUserId(getUserIdFromRequest(req));
@@ -58,9 +57,10 @@ export class CartController {
     }
 
     // @UseGuards(JwtAuthGuard)
-    // @UseGuards(BasicAuthGuard)
+    @UseGuards(BasicAuthGuard)
     @Post('checkout')
     async checkout(@Req() req: AppRequest, @Body() body) {
+        console.log("body", body);
         const userId = getUserIdFromRequest(req);
         const cart = await this.cartService.findByUserId(userId);
 
@@ -74,13 +74,13 @@ export class CartController {
             }
         }
 
-        const {id: cartId, items} = cart;
+        const {id: cartId} = cart;
 
-        const order = this.orderService.create({
+        const order = await this.orderService.create({
             ...body,
             userId,
             cartId,
-            items,
+            cart
         });
 
         await this.cartService.removeByUserId(userId);
